@@ -21,3 +21,7 @@ class Cell:
     
     def is_populated(self) -> bool:
         return True if self.value == 1 else False
+    
+    def switch_value(self) -> None:
+        if self.value == 1: value = 0
+        elif self.value == 0: value = 1
