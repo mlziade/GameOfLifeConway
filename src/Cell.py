@@ -4,11 +4,20 @@ class Cell:
         self.x_pos = x_pos
         self.y_pos = y_pos
         if value not in [0,1]:
-            raise ValueError('VALUE MUST BE EITHER 0 OR 1')
-        self.value = int
+            raise ValueError('CELL VALUE MUST BE EITHER 0 OR 1')
+        self.value = value
 
-    def get_position(self) -> list:
-        return [self.x_pos, self.y_pos]
+    def get_position(self) -> tuple:
+        return (self.x_pos, self.y_pos)
+
+    def get_x_pos(self) -> int:
+        return self.x_pos
+
+    def get_x_pos(self) -> int:
+        return self.x_pos
     
     def get_value(self) -> int:
         return self.value
+    
+    def is_populated(self) -> bool:
+        return True if self.value == 1 else False
