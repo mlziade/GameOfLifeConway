@@ -3,6 +3,10 @@
 # Prelude
     # Tanto faz, eu tô chapado e vi esse vídeo "Math's Fundamental Flaw" https://youtu.be/HeQX2HjkcNo?si=89_5bHk-IF4SBUYd&t=65
 
+# Diary
+    # 26/06 00:06 Depois de entrar num sprint the código em 2025m resolvi tentar oneshot esse código em uma noite. Vamos ver.
+
+
 # Tabuleiro
     # Um grid 100x100 preenchidos com 1 ou 0
 
