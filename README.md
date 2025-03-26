@@ -6,6 +6,7 @@
 # Diary
     # 26/06 00:06 Depois de entrar num sprint the código em 2025m resolvi tentar oneshot esse código em uma noite. Vamos ver.
 
+    # 26/06 01:50 Ok, não consegui matar tudo em 1 noite, mas esse método parece promissor. Escalável, economico com memoria e "rápido".
 
 # Tabuleiro
     # Um grid 100x100 preenchidos com 1 ou 0
@@ -17,10 +18,6 @@
         # Cada celula com 2 ou 3 vizinhos vive
     # Para cada espaço vazio
         # Cada celular com exatamente três vizinhos vive
-
-# Input
-    # A quantidade de celulas preenchidas com 1, equivalente a n
-    # As posições x e y de n celulas 
 
 # Output
     # Uma série matrizes, formatadas para leitura, de frames com o estado do grid
