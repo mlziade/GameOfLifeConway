@@ -60,6 +60,12 @@ def test_build_initial_grid(type: str) -> dict:
                 (0, -1): 1, (0, 0): 1, (0, 1): 1,
                 (1, -1): 1, (1, 0): 1, (1, 1): 1
             }
+        case "p3":  # Adding the p3 oscillator case
+            grid = {
+                (-1, 0): 1,
+                (0, -1): 1, (0, 1): 1,
+                (1, 0): 1
+            }
         case _:
             # Default grid is a 3x3 grid with all cells dead
             grid = {(x, y): 0 for x in range(-1, 2) for y in range(-1, 2)}
