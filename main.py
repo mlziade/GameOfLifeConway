@@ -1,10 +1,6 @@
 import time
 
-def check_cell(x_pos: int, y_pos: int, grid: dict[tuple[int, int], int], bounding_rectangle: list[int]):
-    # I can guarantee that any point outside and more than 1 block away from the rectangle bounded by bounding_rectangle is 0
-    if x_pos - 1 < bounding_rectangle[0] or x_pos + 1 > bounding_rectangle[1] or y_pos - 1 < bounding_rectangle[2] or y_pos + 1 > bounding_rectangle[3]:
-        return 0, bounding_rectangle # Out of bounds
-    
+def check_cell(x_pos: int, y_pos: int, cell_state: bool, grid: set[tuple[int, int]]) -> bool:    
     # Count neighbors
     total = 0
     for i in range(-1, 2):
@@ -12,122 +8,158 @@ def check_cell(x_pos: int, y_pos: int, grid: dict[tuple[int, int], int], boundin
             if i == 0 and j == 0:
                 continue  # Skip the cell itself
             neighbor_pos = (x_pos + i, y_pos + j)
-            if neighbor_pos in grid and grid[neighbor_pos] == 1:
+            if neighbor_pos in grid:
                 total += 1
-    
-    # Check the state of the cell
-    current_state = grid.get((x_pos, y_pos), 0)
 
-    if current_state == 0:     
+    if cell_state == False:     
         # Dead cell with exactly 3 neighbors becomes alive
         if total == 3:
-            # Check if we need to expand the bounding box
-            if (x_pos == bounding_rectangle[0] or x_pos == bounding_rectangle[1] or 
-                y_pos == bounding_rectangle[2] or y_pos == bounding_rectangle[3]):
-                # expand the bounding box
-                return 1, [bounding_rectangle[0] - 1, bounding_rectangle[1] + 1, bounding_rectangle[2] - 1, bounding_rectangle[3] + 1]
-            return 1, bounding_rectangle # Cell becomes alive, no need to expand the bounding box
-        return 0, bounding_rectangle # Cell remains dead
+            return True
+        # Otherwise remains dead
+        return False
     
-    else:  # current_state == 1
+    else:  # cell_state == 1
         # Live cell with 2 or 3 neighbors survives
         if total == 2 or total == 3:
-            return 1, bounding_rectangle
-        # Otherwise die (underpopulation or overpopulation)
-        return 0, bounding_rectangle
+            return True
+        # Otherwise dies
+        return False
     
+def print_grid(grid: set[tuple[int, int]]) -> None:
+    """
+    Prints the current state of the Game of Life grid.
+    Live cells are represented by '■' characters, dead cells by spaces.
+    """
+    if not grid:
+        print("Empty grid")
+        return
     
-def test_build_initial_grid(type: str) -> dict:
-    grid = {}
+    # Find the boundaries of the grid
+    min_x = min(x for x, _ in grid)
+    max_x = max(x for x, _ in grid)
+    min_y = min(y for _, y in grid)
+    max_y = max(y for _, y in grid)
+    
+    # Add some padding
+    min_x -= 2
+    max_x += 2
+    min_y -= 2
+    max_y += 2
+    
+    # Print the grid
+    print("\n" + "-" * (max_x - min_x + 3))  # Border
+    for y in range(min_y, max_y + 1):
+        print("|", end="")
+        for x in range(min_x, max_x + 1):
+            if (x, y) in grid:
+                print("■", end="")
+            else:
+                print(" ", end="")
+        print("|")
+    print("-" * (max_x - min_x + 3))  # Border
+    print(f"Live cells: {len(grid)}")
+     
+def test_build_initial_grid(type: str) -> set[tuple[int, int]]:
     match type:
-        case "infinite":
+        case "p1":
+            # Glider pattern
             grid = {
-                (-1, 0): 1, (0, 1): 1, (1, -1): 1,
-                (1, 0): 1, (1, 1): 1
+                (0, 0), (1, 1), (2, 2), (2, 1), (1, 2)
             }
-        case "loop":
+        case "p2":
+            # Blinker pattern
             grid = {
-                (0, -1): 1, (0, 0): 1, (0, 1): 1
+                (0, 0), (1, 0), (2, 0)
             }
-        case "chaos": 
+        case "p3":
+            # Toad pattern
             grid = {
-                (-1, -1): 1, (-1, 0): 1, (-1, 1): 1,
-                (0, 0): 1, (1, -1): 1, (1, 1): 1
-            }
-        case "sepuku":
-            grid = {
-                (-1, -1): 1, (-1, 0): 1, (-1, 1): 1,
-                (0, -1): 1, (0, 0): 1, (0, 1): 1,
-                (1, -1): 1, (1, 0): 1, (1, 1): 1
-            }
-        case "p3":  # Adding the p3 oscillator case
-            grid = {
-                (-1, 0): 1,
-                (0, -1): 1, (0, 1): 1,
-                (1, 0): 1
+                (0, 0), (1, 0), (2, 0), (3, 1), (4, 1), (5, 1)
             }
         case _:
             # Default grid is a 3x3 grid with all cells dead
-            grid = {(x, y): 0 for x in range(-1, 2) for y in range(-1, 2)}
+            grid = set()
     
-    return grid, [2, 2, 2, 2]
-
-def print_grid(grid: dict[tuple[int, int], int], bounding_rectangle: list[int]):
-    for y in range(bounding_rectangle[2], bounding_rectangle[3] + 1):
-        for x in range(bounding_rectangle[0], bounding_rectangle[1] + 1):
-            print("O" if grid.get((x, y), 0) == 1 else ".", end="")
-        print()
-    print()
+    return grid
     
 def start_game() -> None:
-    # The grid is a dictionary with the key being a tuple of the x and y position of the cell and the value being the state of the cell
-    grid: dict[tuple[int, int], int] = {}
-   
-    # The bounding rectangle defines the area where the cells are allowed to be in
-    # The center of the grid is at (0, 0) and the bounding rectangle is defined by the following way:
-    # [d, c, b, a] where d is the the x position of the leftmost cell, c is the x position of the rightmost cell, b is the y position of the bottommost cell and a is the y position of the topmost cell
-    # The bowding box is always 1 block away from the cells
-    # So a 3x3 grid would have a bounding rectangle of [1, 1, 1, 1]
-    # It is used to optimize the check_cell function by not checking cells that are outside of the bounding rectangle
-    # TODO: Could be optimized further by changing the number of points of the polygon that defines the bounding rectangle
-    bounding_rectangle: list[int, int, int, int] = [0, 0, 0, 0]
+    # The grid is a set of cells, with the key being a tuple of the x and y position of the cell
+    # The middle of the grid is at (0, 0)
+    grid: set[tuple[int, int]] = set()
 
     # Start testing grid
-    grid, bounding_rectangle = test_build_initial_grid("chaos")
+    grid = test_build_initial_grid("p3")
 
     # Start the game loop
     while True:
-        # Create a copy to read from while writing to the original grid
-        aux_grid = grid.copy()
+        if len(grid) == 0:
+            print("Empty grid")
+            break
+
+        # Get the start time of the state
+        state_start_time = time.time()
+
         # Create a set to store the cells that have already been checked
+        # So we don't check the same cell multiple times
         checked_cells = set()
 
+        # Create a auxiliary grid so i can create the next grid state from the last one
+        aux_grid = set()
+
         # Iterate over the alive cells
-        for cell in aux_grid:
+        for cell in grid:
             # If the cell has already been checked, skip it
             if cell in checked_cells:
                 continue
             else:
                 # Check the cell
-                new_state, new_bounds = check_cell(cell[0], cell[1], aux_grid, bounding_rectangle)
-                # Update the cell state
-                if new_state == 1:
-                    grid[cell] = 1
-                # Add the cell to the checked set
-                checked_cells.add(cell)
-                # And its neighbors
+                new_state = check_cell(
+                    x_pos = cell[0], 
+                    y_pos = cell[1],
+                    cell_state = True,
+                    grid = grid,
+                )
+
+                # Add the cell to the auxiliary grid if it is alive
+                if new_state:
+                    aux_grid.add(cell)
+
+                # Check the neighbors of the cell if they are not already checked
                 for i in range(-1, 2):
                     for j in range(-1, 2):
+                        if i == 0 and j == 0:
+                            continue
                         neighbor_pos = (cell[0] + i, cell[1] + j)
-                        if neighbor_pos not in checked_cells:
-                            new_state, new_bounds = check_cell(neighbor_pos[0], neighbor_pos[1], aux_grid, bounding_rectangle)
-                            if new_state == 1:
-                                grid[neighbor_pos] = 1
+                        if neighbor_pos in checked_cells:
+                            continue
+                        else:
+                            # Check the neighbor cell
+                            new_state = check_cell(
+                                x_pos = neighbor_pos[0],
+                                y_pos = neighbor_pos[1],
+                                cell_state = False,
+                                grid = grid,
+                            )
+
+                            # Add the neighbor cell to the auxiliary grid if it is alive
+                            if new_state:
+                                aux_grid.add(neighbor_pos)
+
+                            # Add the neighbor cell to the checked cells set
                             checked_cells.add(neighbor_pos)
-            
-            bounding_rectangle = new_bounds
-        print_grid(grid, bounding_rectangle)
-        time.sleep(0.5)
+
+                # Add the cell to the checked cells set
+                checked_cells.add(cell)
+
+        # Update the grid with the new state
+        grid = aux_grid
+
+        # Visualize the grid
+        print_grid(grid)
+
+        state_end_time = time.time()
+        state_spent_time = state_end_time - state_start_time
+        print(f"State spent time: {state_spent_time * 1000:.2f} miliseconds")
 
 def main():
     start_game()
