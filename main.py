@@ -137,7 +137,7 @@ def start_game() -> None:
                             new_state = check_cell(
                                 x_pos = neighbor_pos[0],
                                 y_pos = neighbor_pos[1],
-                                cell_state = False,
+                                cell_state = neighbor_pos in grid, # False if the cell is not in the grid
                                 grid = grid,
                             )
 
