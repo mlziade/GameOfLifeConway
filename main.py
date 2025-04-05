@@ -92,8 +92,9 @@ def start_game() -> None:
 
     # Start the game loop
     while True:
+        # If the grid is empty, break the loop
         if len(grid) == 0:
-            print("Empty grid")
+            print("Grid is empty")
             break
 
         # Get the start time of the state
@@ -103,53 +104,35 @@ def start_game() -> None:
         # So we don't check the same cell multiple times
         checked_cells = set()
 
-        # Create a auxiliary grid so i can create the next grid state from the last one
+        # Create a auxiliary grid
         aux_grid = set()
 
-        # Iterate over the alive cells
+        # Iterate over the alive cells and its 8 neighbors
         for cell in grid:
-            # If the cell has already been checked, skip it
-            if cell in checked_cells:
-                continue
-            else:
-                # Check the cell
-                new_state = check_cell(
-                    x_pos = cell[0], 
-                    y_pos = cell[1],
-                    cell_state = True,
-                    grid = grid,
-                )
+            for i in range(-1, 2):
+                for j in range(-1, 2):
+                    # Current cell position being checked
+                    current_cell_pos = (cell[0] + i, cell[1] + j)
 
-                # Add the cell to the auxiliary grid if it is alive
-                if new_state:
-                    aux_grid.add(cell)
+                    # Check if the current cell position is already checked
+                    # If it is, skip it
+                    if current_cell_pos in checked_cells:
+                        continue
+                    else:
+                        # Check the current cell
+                        new_state = check_cell(
+                            x_pos = current_cell_pos[0],
+                            y_pos = current_cell_pos[1],
+                            cell_state = current_cell_pos in grid, # False if the cell is not in the grid
+                            grid = grid,
+                        )
 
-                # Check the neighbors of the cell if they are not already checked
-                for i in range(-1, 2):
-                    for j in range(-1, 2):
-                        if i == 0 and j == 0:
-                            continue
-                        neighbor_pos = (cell[0] + i, cell[1] + j)
-                        if neighbor_pos in checked_cells:
-                            continue
-                        else:
-                            # Check the neighbor cell
-                            new_state = check_cell(
-                                x_pos = neighbor_pos[0],
-                                y_pos = neighbor_pos[1],
-                                cell_state = neighbor_pos in grid, # False if the cell is not in the grid
-                                grid = grid,
-                            )
+                        # If it is alive, add the current cell to the auxiliary grid,
+                        if new_state:
+                            aux_grid.add(current_cell_pos)
 
-                            # Add the neighbor cell to the auxiliary grid if it is alive
-                            if new_state:
-                                aux_grid.add(neighbor_pos)
-
-                            # Add the neighbor cell to the checked cells set
-                            checked_cells.add(neighbor_pos)
-
-                # Add the cell to the checked cells set
-                checked_cells.add(cell)
+                        # Add the current cell to the checked cells set
+                        checked_cells.add(current_cell_pos)
 
         # Update the grid with the new state
         grid = aux_grid
