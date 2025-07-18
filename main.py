@@ -1,4 +1,8 @@
 import time
+import json
+import os
+from datetime import datetime
+from statistics import median
 
 def check_cell(x_pos: int, y_pos: int, cell_state: bool, grid: set[tuple[int, int]]) -> bool:    
     # Count neighbors
@@ -81,6 +85,48 @@ def test_build_initial_grid(type: str) -> set[tuple[int, int]]:
             grid = set()
     
     return grid
+
+def save_game_log(initial_grid: set[tuple[int, int]], rounds: int, total_time: float, round_times: list[float]) -> None:
+    """
+    Saves game statistics to a JSON file in the logs folder.
+    """
+    if not round_times:
+        return
+    
+    # Create timestamp for filename
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"game_log_{timestamp}.json"
+    filepath = os.path.join("logs", filename)
+    
+    # Calculate statistics
+    round_times_ms = [t * 1000 for t in round_times]  # Convert to milliseconds
+    
+    log_data = {
+        "timestamp": datetime.now().isoformat(),
+        "initial_grid": {
+            "pattern": "p3",  # Could be made dynamic
+            "live_cells": len(initial_grid),
+            "cells": list(initial_grid)
+        },
+        "game_stats": {
+            "total_rounds": rounds,
+            "total_time_seconds": round(total_time, 4),
+            "total_time_ms": round(total_time * 1000, 2)
+        },
+        "round_timings": {
+            "fastest_round_ms": round(min(round_times_ms), 2),
+            "slowest_round_ms": round(max(round_times_ms), 2),
+            "median_round_ms": round(median(round_times_ms), 2),
+            "average_round_ms": round(sum(round_times_ms) / len(round_times_ms), 2),
+            "all_round_times_ms": [round(t, 2) for t in round_times_ms]
+        }
+    }
+    
+    # Save to file
+    with open(filepath, 'w') as f:
+        json.dump(log_data, f, indent=2)
+    
+    print(f"Game log saved to: {filepath}")
     
 def start_game() -> None:
     # The grid is a set of cells, with the key being a tuple of the x and y position of the cell
@@ -89,6 +135,12 @@ def start_game() -> None:
 
     # Start testing grid
     grid = test_build_initial_grid("p3")
+    
+    # Store initial grid and timing information
+    initial_grid = grid.copy()
+    round_times = []
+    round_count = 0
+    game_start_time = time.time()
 
     # Start the game loop
     while True:
@@ -96,6 +148,8 @@ def start_game() -> None:
         if len(grid) == 0:
             print("Grid is empty")
             break
+        
+        round_count += 1
 
         # Get the start time of the state
         state_start_time = time.time()
@@ -142,7 +196,15 @@ def start_game() -> None:
 
         state_end_time = time.time()
         state_spent_time = state_end_time - state_start_time
+        round_times.append(state_spent_time)
         print(f"State spent time: {state_spent_time * 1000:.2f} miliseconds")
+    
+    # Calculate total game time and save log
+    game_end_time = time.time()
+    total_game_time = game_end_time - game_start_time
+    
+    # Save the game log
+    save_game_log(initial_grid, round_count, total_game_time, round_times)
 
 def main():
     start_game()
