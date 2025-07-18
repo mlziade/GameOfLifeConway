@@ -139,7 +139,7 @@ def save_game_log(initial_grid: set[tuple[int, int]], rounds: int, total_time: f
     
     print(f"Game log saved to: {filepath}")
     
-def start_game(pattern_id: str = "p3") -> None:
+def start_game(pattern_id: str = "p3", save_logs: bool = False) -> None:
     # The grid is a set of cells, with the key being a tuple of the x and y position of the cell
     # The middle of the grid is at (0, 0)
     grid: set[tuple[int, int]] = set()
@@ -215,7 +215,10 @@ def start_game(pattern_id: str = "p3") -> None:
     total_game_time = game_end_time - game_start_time
     
     # Save the game log
-    save_game_log(initial_grid, round_count, total_game_time, round_times, pattern_info)
+    if save_logs:
+        save_game_log(initial_grid, round_count, total_game_time, round_times, pattern_info)
+    else:
+        print("Log saving disabled.")
 
 def main():
     parser = argparse.ArgumentParser(description="Conway's Game of Life")
@@ -224,6 +227,13 @@ def main():
         type=str, 
         default="p3",
         help="Pattern to use (default: p3). Available: p1-p12"
+    )
+    parser.add_argument(
+        "--logs",
+        type=str,
+        choices=["true", "false"],
+        default="false",
+        help="Enable or disable saving game logs to files (default: false)"
     )
     
     args = parser.parse_args()
@@ -240,7 +250,7 @@ def main():
         print(f"Warning: Pattern '{args.pattern}' not found. Defaulting to pattern p3.")
         args.pattern = "p3"
     
-    start_game(args.pattern)
+    start_game(args.pattern, args.logs == "true")
 
 if __name__ == '__main__':
     main()
