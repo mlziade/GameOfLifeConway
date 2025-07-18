@@ -63,30 +63,39 @@ def print_grid(grid: set[tuple[int, int]]) -> None:
     print("-" * (max_x - min_x + 3))  # Border
     print(f"Live cells: {len(grid)}")
      
-def test_build_initial_grid(type: str) -> set[tuple[int, int]]:
-    match type:
-        case "p1":
-            # Glider pattern
-            grid = {
-                (0, 0), (1, 1), (2, 2), (2, 1), (1, 2)
-            }
-        case "p2":
-            # Blinker pattern
-            grid = {
-                (0, 0), (1, 0), (2, 0)
-            }
-        case "p3":
-            # Toad pattern
-            grid = {
-                (0, 0), (1, 0), (2, 0), (3, 1), (4, 1), (5, 1)
-            }
-        case _:
-            # Default grid is a 3x3 grid with all cells dead
-            grid = set()
-    
-    return grid
+def load_patterns() -> dict:
+    """Load patterns from JSON file."""
+    try:
+        with open('patterns.json', 'r') as f:
+            return json.load(f)
+    except FileNotFoundError:
+        print("Warning: patterns.json not found. Using empty pattern.")
+        return {"patterns": {}}
 
-def save_game_log(initial_grid: set[tuple[int, int]], rounds: int, total_time: float, round_times: list[float]) -> None:
+def test_build_initial_grid(pattern_id: str) -> tuple[set[tuple[int, int]], dict]:
+    """
+    Load a pattern from JSON file and return the grid and pattern info.
+    Returns tuple of (grid_set, pattern_info).
+    """
+    patterns_data = load_patterns()
+    patterns = patterns_data.get("patterns", {})
+    
+    if pattern_id in patterns:
+        pattern_info = patterns[pattern_id]
+        cells = pattern_info["cells"]
+        grid = {tuple(cell) for cell in cells}
+        return grid, pattern_info
+    else:
+        # Default empty grid
+        grid = set()
+        pattern_info = {
+            "name": "Empty Grid",
+            "description": "Default empty grid with no live cells",
+            "cells": []
+        }
+        return grid, pattern_info
+
+def save_game_log(initial_grid: set[tuple[int, int]], rounds: int, total_time: float, round_times: list[float], pattern_info: dict) -> None:
     """
     Saves game statistics to a JSON file in the logs folder.
     """
@@ -104,7 +113,8 @@ def save_game_log(initial_grid: set[tuple[int, int]], rounds: int, total_time: f
     log_data = {
         "timestamp": datetime.now().isoformat(),
         "initial_grid": {
-            "pattern": "p3",  # Could be made dynamic
+            "pattern_name": pattern_info["name"],
+            "pattern_description": pattern_info["description"],
             "live_cells": len(initial_grid),
             "cells": list(initial_grid)
         },
@@ -134,7 +144,7 @@ def start_game() -> None:
     grid: set[tuple[int, int]] = set()
 
     # Start testing grid
-    grid = test_build_initial_grid("p3")
+    grid, pattern_info = test_build_initial_grid("p3")
     
     # Store initial grid and timing information
     initial_grid = grid.copy()
@@ -204,7 +214,7 @@ def start_game() -> None:
     total_game_time = game_end_time - game_start_time
     
     # Save the game log
-    save_game_log(initial_grid, round_count, total_game_time, round_times)
+    save_game_log(initial_grid, round_count, total_game_time, round_times, pattern_info)
 
 def main():
     start_game()
