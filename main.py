@@ -1,6 +1,7 @@
 import time
 import json
 import os
+import argparse
 from datetime import datetime
 from statistics import median
 
@@ -138,13 +139,13 @@ def save_game_log(initial_grid: set[tuple[int, int]], rounds: int, total_time: f
     
     print(f"Game log saved to: {filepath}")
     
-def start_game() -> None:
+def start_game(pattern_id: str = "p3") -> None:
     # The grid is a set of cells, with the key being a tuple of the x and y position of the cell
     # The middle of the grid is at (0, 0)
     grid: set[tuple[int, int]] = set()
 
     # Start testing grid
-    grid, pattern_info = test_build_initial_grid("p3")
+    grid, pattern_info = test_build_initial_grid(pattern_id)
     
     # Store initial grid and timing information
     initial_grid = grid.copy()
@@ -217,8 +218,29 @@ def start_game() -> None:
     save_game_log(initial_grid, round_count, total_game_time, round_times, pattern_info)
 
 def main():
-    start_game()
-    pass
+    parser = argparse.ArgumentParser(description="Conway's Game of Life")
+    parser.add_argument(
+        "--pattern", 
+        type=str, 
+        default="p3",
+        help="Pattern to use (default: p3). Available: p1-p12"
+    )
+    
+    args = parser.parse_args()
+    
+    # Display selected pattern info
+    patterns_data = load_patterns()
+    patterns = patterns_data.get("patterns", {})
+    
+    if args.pattern in patterns:
+        pattern_info = patterns[args.pattern]
+        print(f"Starting with pattern: {pattern_info['name']}")
+        print()
+    else:
+        print(f"Warning: Pattern '{args.pattern}' not found. Defaulting to pattern p3.")
+        args.pattern = "p3"
+    
+    start_game(args.pattern)
 
 if __name__ == '__main__':
     main()
