@@ -73,7 +73,7 @@ def load_patterns() -> dict:
         print("Warning: patterns.json not found. Using empty pattern.")
         return {"patterns": {}}
 
-def test_build_initial_grid(pattern_id: str) -> tuple[set[tuple[int, int]], dict]:
+def load_grid_pattern(pattern_id: str) -> tuple[set[tuple[int, int]], dict]:
     """
     Load a pattern from JSON file and return the grid and pattern info.
     Returns tuple of (grid_set, pattern_info).
@@ -145,7 +145,7 @@ def start_game(pattern_id: str = "p3", save_logs: bool = False) -> None:
     grid: set[tuple[int, int]] = set()
 
     # Start testing grid
-    grid, pattern_info = test_build_initial_grid(pattern_id)
+    grid, pattern_info = load_grid_pattern(pattern_id)
     
     # Store initial grid and timing information
     initial_grid = grid.copy()
