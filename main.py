@@ -2,10 +2,12 @@ import time
 import json
 import os
 import argparse
+import asyncio
 from datetime import datetime
 from statistics import median
+from typing import Coroutine, Any
 
-def check_cell(x_pos: int, y_pos: int, cell_state: bool, grid: set[tuple[int, int]]) -> bool:    
+async def check_cell(x_pos: int, y_pos: int, cell_state: bool, grid: set[tuple[int, int]]) -> bool:    
     # Count neighbors
     total = 0
     for i in range(-1, 2):
@@ -33,7 +35,7 @@ def check_cell(x_pos: int, y_pos: int, cell_state: bool, grid: set[tuple[int, in
 def print_grid(grid: set[tuple[int, int]]) -> None:
     """
     Prints the current state of the Game of Life grid.
-    Live cells are represented by '■' characters, dead cells by spaces.
+    Live cells are represented by '*' characters, dead cells by spaces.
     """
     if not grid:
         print("Empty grid")
@@ -57,28 +59,31 @@ def print_grid(grid: set[tuple[int, int]]) -> None:
         print("|", end="")
         for x in range(min_x, max_x + 1):
             if (x, y) in grid:
-                print("■", end="")
+                print("*", end="")
             else:
                 print(" ", end="")
         print("|")
     print("-" * (max_x - min_x + 3))  # Border
     print(f"Live cells: {len(grid)}")
      
-def load_patterns() -> dict:
+async def load_patterns() -> dict:
     """Load patterns from JSON file."""
     try:
-        with open('patterns.json', 'r') as f:
-            return json.load(f)
+        # Use asyncio.to_thread for file I/O to avoid blocking
+        def _read_file():
+            with open('patterns.json', 'r') as f:
+                return json.load(f)
+        return await asyncio.to_thread(_read_file)
     except FileNotFoundError:
         print("Warning: patterns.json not found. Using empty pattern.")
         return {"patterns": {}}
 
-def load_grid_pattern(pattern_id: str) -> tuple[set[tuple[int, int]], dict]:
+async def load_grid_pattern(pattern_id: str) -> tuple[set[tuple[int, int]], dict]:
     """
     Load a pattern from JSON file and return the grid and pattern info.
     Returns tuple of (grid_set, pattern_info).
     """
-    patterns_data = load_patterns()
+    patterns_data = await load_patterns()
     patterns = patterns_data.get("patterns", {})
     
     if pattern_id in patterns:
@@ -96,7 +101,7 @@ def load_grid_pattern(pattern_id: str) -> tuple[set[tuple[int, int]], dict]:
         }
         return grid, pattern_info
 
-def save_game_log(initial_grid: set[tuple[int, int]], rounds: int, total_time: float, round_times: list[float], pattern_info: dict) -> None:
+async def save_game_log(initial_grid: set[tuple[int, int]], rounds: int, total_time: float, round_times: list[float], pattern_info: dict, max_rounds: int = None) -> None:
     """
     Saves game statistics to a JSON file in the logs folder.
     """
@@ -121,6 +126,7 @@ def save_game_log(initial_grid: set[tuple[int, int]], rounds: int, total_time: f
         },
         "game_stats": {
             "total_rounds": rounds,
+            "max_rounds_limit": max_rounds,
             "total_time_seconds": round(total_time, 4),
             "total_time_ms": round(total_time * 1000, 2)
         },
@@ -133,19 +139,21 @@ def save_game_log(initial_grid: set[tuple[int, int]], rounds: int, total_time: f
         }
     }
     
-    # Save to file
-    with open(filepath, 'w') as f:
-        json.dump(log_data, f, indent=2)
+    # Save to file using async I/O
+    def _write_file():
+        with open(filepath, 'w') as f:
+            json.dump(log_data, f, indent=2)
+    await asyncio.to_thread(_write_file)
     
     print(f"Game log saved to: {filepath}")
     
-def start_game(pattern_id: str = "p3", save_logs: bool = False) -> None:
+async def start_game(pattern_id: str = "p3", save_logs: bool = False, max_rounds: int = None) -> None:
     # The grid is a set of cells, with the key being a tuple of the x and y position of the cell
     # The middle of the grid is at (0, 0)
     grid: set[tuple[int, int]] = set()
 
     # Start testing grid
-    grid, pattern_info = load_grid_pattern(pattern_id)
+    grid, pattern_info = await load_grid_pattern(pattern_id)
     
     # Store initial grid and timing information
     initial_grid = grid.copy()
@@ -160,44 +168,43 @@ def start_game(pattern_id: str = "p3", save_logs: bool = False) -> None:
             print("Grid is empty")
             break
         
+        # Check if we've reached the maximum rounds
+        if max_rounds is not None and round_count >= max_rounds:
+            print(f"Reached maximum rounds limit: {max_rounds}")
+            break
+        
         round_count += 1
 
         # Get the start time of the state
         state_start_time = time.time()
 
-        # Create a set to store the cells that have already been checked
+        # Create a set to store the cells that need to be checked
         # So we don't check the same cell multiple times
-        checked_cells = set()
+        cells_to_check = set()
 
-        # Create a auxiliary grid
-        aux_grid = set()
-
-        # Iterate over the alive cells and its 8 neighbors
+        # Collect all cells that need to be checked (alive cells and their neighbors)
         for cell in grid:
             for i in range(-1, 2):
                 for j in range(-1, 2):
-                    # Current cell position being checked
                     current_cell_pos = (cell[0] + i, cell[1] + j)
+                    cells_to_check.add(current_cell_pos)
 
-                    # Check if the current cell position is already checked
-                    # If it is, skip it
-                    if current_cell_pos in checked_cells:
-                        continue
-                    else:
-                        # Check the current cell
-                        new_state = check_cell(
-                            x_pos = current_cell_pos[0],
-                            y_pos = current_cell_pos[1],
-                            cell_state = current_cell_pos in grid, # False if the cell is not in the grid
-                            grid = grid,
-                        )
+        # Create async tasks for parallel cell checking
+        async def check_single_cell(cell_pos: tuple[int, int]) -> tuple[tuple[int, int], bool]:
+            new_state = await check_cell(
+                x_pos=cell_pos[0],
+                y_pos=cell_pos[1],
+                cell_state=cell_pos in grid,
+                grid=grid,
+            )
+            return cell_pos, new_state
 
-                        # If it is alive, add the current cell to the auxiliary grid,
-                        if new_state:
-                            aux_grid.add(current_cell_pos)
+        # Execute all cell checks in parallel
+        tasks = [check_single_cell(cell_pos) for cell_pos in cells_to_check]
+        results = await asyncio.gather(*tasks)
 
-                        # Add the current cell to the checked cells set
-                        checked_cells.add(current_cell_pos)
+        # Build the new grid from results
+        aux_grid = {cell_pos for cell_pos, new_state in results if new_state}
 
         # Update the grid with the new state
         grid = aux_grid
@@ -216,11 +223,11 @@ def start_game(pattern_id: str = "p3", save_logs: bool = False) -> None:
     
     # Save the game log
     if save_logs:
-        save_game_log(initial_grid, round_count, total_game_time, round_times, pattern_info)
+        await save_game_log(initial_grid, round_count, total_game_time, round_times, pattern_info, max_rounds)
     else:
         print("Log saving disabled.")
 
-def main():
+async def main():
     parser = argparse.ArgumentParser(description="Conway's Game of Life")
     parser.add_argument(
         "--pattern", 
@@ -235,11 +242,17 @@ def main():
         default="false",
         help="Enable or disable saving game logs to files (default: false)"
     )
+    parser.add_argument(
+        "--rounds",
+        type=int,
+        default=None,
+        help="Maximum number of rounds to run (default: unlimited)"
+    )
     
     args = parser.parse_args()
     
     # Display selected pattern info
-    patterns_data = load_patterns()
+    patterns_data = await load_patterns()
     patterns = patterns_data.get("patterns", {})
     
     if args.pattern in patterns:
@@ -250,7 +263,7 @@ def main():
         print(f"Warning: Pattern '{args.pattern}' not found. Defaulting to pattern p3.")
         args.pattern = "p3"
     
-    start_game(args.pattern, args.logs == "true")
+    await start_game(args.pattern, args.logs == "true", args.rounds)
 
 if __name__ == '__main__':
-    main()
+    asyncio.run(main())
